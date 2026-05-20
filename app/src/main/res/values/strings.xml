@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Supernote Lyrics</string>
+
+    <string name="setup_title">Connect Spotify</string>
+    <string name="setup_body">First-time setup: paste your Spotify <b>Client ID</b> below.\n\nGet one at developer.spotify.com → Dashboard → Create app. Set the Redirect URI to:\n\n<b>supernotelyrics://callback</b></string>
+    <string name="client_id_hint">Spotify Client ID</string>
+    <string name="save_client_id">Save and continue</string>
+    <string name="open_dashboard">Open Spotify Dashboard</string>
+
+    <string name="login_title">Sign in to Spotify</string>
+    <string name="login_body">You\'ll be sent to Spotify in a browser. After approving, you\'ll come right back here.</string>
+    <string name="login_button">Log in with Spotify</string>
+    <string name="reset_setup">Use a different Client ID</string>
+    <string name="logout">Disconnect Spotify</string>
+
+    <string name="waiting_for_spotify">Open Spotify on any device and press play.</string>
+    <string name="no_lyrics">No synced lyrics found for this song on LRCLIB.</string>
+    <string name="loading_lyrics">Looking up lyrics…</string>
+    <string name="login_failed">Login failed — try again.</string>
+    <string name="no_client_id">Enter a Client ID first.</string>
+</resources>
