@@ -70,24 +70,27 @@ object LyricsRepository {
         _state.value = LyricsState.Loading
         fetchJob?.cancel()
         fetchJob = scope.launch {
-            // Try LRCLIB first
+            // Try synced sources in priority order: LRCLIB, KuGou, QQ Music.
             val lrcLib = LrcLibClient.fetch(info.title, info.artist, info.album, info.durationMs)
             if (lastFetchedKey != info.key) return@launch
-            if (lrcLib?.synced != null) {
-                applyBundle(lrcLib)
-                return@launch
-            }
+            if (lrcLib?.synced != null) { applyBundle(lrcLib); return@launch }
 
-            // No synced from LRCLIB — try KuGou
             val kuGou = KuGouClient.fetch(info.title, info.artist, info.durationMs)
             if (lastFetchedKey != info.key) return@launch
-            if (kuGou?.synced != null) {
-                applyBundle(kuGou)
-                return@launch
-            }
+            if (kuGou?.synced != null) { applyBundle(kuGou); return@launch }
 
-            // No synced anywhere — fall back to plain text if either source had it
-            val plain = lrcLib?.plain ?: kuGou?.plain
+            val qq = QQMusicClient.fetch(info.title, info.artist)
+            if (lastFetchedKey != info.key) return@launch
+            if (qq?.synced != null) { applyBundle(qq); return@launch }
+
+            // No synced anywhere. Try Mojim for plain text — best Chinese
+            // plain-text coverage and a fresh shot at songs the others missed.
+            val mojim = MojimClient.fetch(info.title, info.artist)
+            if (lastFetchedKey != info.key) return@launch
+            if (mojim?.plain != null) { applyPlain(mojim); return@launch }
+
+            // Last resort: any plain text we collected along the way.
+            val plain = lrcLib?.plain ?: kuGou?.plain ?: qq?.plain
             if (plain != null) {
                 _lines.value = plain.split("\n").map { LrcLine(0L, it) }
                 _state.value = LyricsState.LoadedUnsynced
@@ -102,6 +105,12 @@ object LyricsRepository {
         val parsed = LrcParser.parse(bundle.synced)
         _lines.value = parsed
         _state.value = if (parsed.isEmpty()) LyricsState.NoLyrics else LyricsState.Loaded
+    }
+
+    private fun applyPlain(bundle: LyricsBundle) {
+        val plain = bundle.plain ?: return
+        _lines.value = plain.split("\n").map { LrcLine(0L, it) }
+        _state.value = LyricsState.LoadedUnsynced
     }
 
     fun onPlayback(info: PlaybackInfo) {
