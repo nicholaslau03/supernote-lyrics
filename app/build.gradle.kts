@@ -15,7 +15,22 @@ android {
         versionName = "0.1"
     }
 
+    signingConfigs {
+        // Stable debug key committed to the repo so every CI build is
+        // signed with the same certificate, allowing `adb install -r`
+        // without uninstalling between builds.
+        getByName("debug") {
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("debug")
+        }
         release {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
