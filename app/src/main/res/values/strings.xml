@@ -18,6 +18,8 @@
     <string name="text_larger">Lyrics text: larger</string>
     <string name="simplify_on">Simplified Chinese: ON</string>
     <string name="simplify_off">Simplified Chinese: OFF</string>
+    <string name="source_unknown">No lyrics loaded</string>
+    <string name="source_label">Lyrics source: %1$s</string>
 
     <string name="waiting_for_spotify">Open Spotify on any device and press play.</string>
     <string name="no_lyrics">No synced lyrics found for this song.</string>

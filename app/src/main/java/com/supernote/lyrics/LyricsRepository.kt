@@ -55,6 +55,9 @@ object LyricsRepository {
     private val _playback = MutableStateFlow<PlaybackInfo?>(null)
     val playback: StateFlow<PlaybackInfo?> = _playback.asStateFlow()
 
+    private val _source = MutableStateFlow<String?>(null)
+    val source: StateFlow<String?> = _source.asStateFlow()
+
     private var lastFetchedKey: String? = null
     private var fetchJob: Job? = null
 
@@ -68,6 +71,7 @@ object LyricsRepository {
         lastFetchedKey = info.key
         _lines.value = emptyList()
         _state.value = LyricsState.Loading
+        _source.value = null
         fetchJob?.cancel()
         fetchJob = scope.launch {
             // Try synced sources in priority order:
@@ -109,12 +113,14 @@ object LyricsRepository {
     private fun applyBundle(bundle: LyricsBundle) {
         val parsed = LrcParser.parse(bundle.synced)
         _lines.value = parsed
+        _source.value = bundle.source
         _state.value = if (parsed.isEmpty()) LyricsState.NoLyrics else LyricsState.Loaded
     }
 
     private fun applyPlain(bundle: LyricsBundle) {
         val plain = bundle.plain ?: return
         _lines.value = plain.split("\n").map { LrcLine(0L, it) }
+        _source.value = bundle.source
         _state.value = LyricsState.LoadedUnsynced
     }
 
@@ -127,6 +133,7 @@ object LyricsRepository {
         _lines.value = emptyList()
         _state.value = LyricsState.Idle
         _playback.value = null
+        _source.value = null
         lastFetchedKey = null
         fetchJob?.cancel()
     }

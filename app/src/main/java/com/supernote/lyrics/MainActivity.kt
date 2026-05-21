@@ -231,49 +231,54 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showMenu() {
-        val simplifyLabel = if (prefs.simplifyChinese)
+        val view = LayoutInflater.from(this).inflate(R.layout.dialog_menu, null)
+        val source = LyricsRepository.source.value
+        view.findViewById<TextView>(R.id.sourceLabel).text =
+            if (source.isNullOrBlank()) getString(R.string.source_unknown)
+            else getString(R.string.source_label, source)
+
+        val simplifyTv = view.findViewById<TextView>(R.id.menuSimplify)
+        simplifyTv.text = if (prefs.simplifyChinese)
             getString(R.string.simplify_on) else getString(R.string.simplify_off)
-        val items = arrayOf(
-            simplifyLabel,
-            getString(R.string.text_smaller),
-            getString(R.string.text_larger),
-            getString(R.string.logout),
-            getString(R.string.reset_setup),
-            getString(R.string.quit_app),
-        )
-        AlertDialog.Builder(this)
-            .setItems(items) { _, which ->
-                when (which) {
-                    0 -> {
-                        prefs.simplifyChinese = !prefs.simplifyChinese
-                        renderTrack(LyricsRepository.track.value)
-                        applyTextStyle()
-                    }
-                    1 -> {
-                        prefs.textSizeSp = prefs.textSizeSp - Prefs.TEXT_STEP_SP
-                        applyTextStyle()
-                    }
-                    2 -> {
-                        prefs.textSizeSp = prefs.textSizeSp + Prefs.TEXT_STEP_SP
-                        applyTextStyle()
-                    }
-                    3 -> {
-                        stopPolling()
-                        prefs.clearTokens()
-                        LyricsRepository.clear()
-                        applyScreen()
-                    }
-                    4 -> {
-                        stopPolling()
-                        prefs.clearTokens()
-                        prefs.clientId = null
-                        LyricsRepository.clear()
-                        applyScreen()
-                    }
-                    5 -> quitApp()
-                }
-            }
-            .show()
+
+        val dialog = AlertDialog.Builder(this).setView(view).create()
+
+        simplifyTv.setOnClickListener {
+            prefs.simplifyChinese = !prefs.simplifyChinese
+            renderTrack(LyricsRepository.track.value)
+            applyTextStyle()
+            dialog.dismiss()
+        }
+        view.findViewById<TextView>(R.id.menuSmaller).setOnClickListener {
+            prefs.textSizeSp = prefs.textSizeSp - Prefs.TEXT_STEP_SP
+            applyTextStyle()
+            dialog.dismiss()
+        }
+        view.findViewById<TextView>(R.id.menuLarger).setOnClickListener {
+            prefs.textSizeSp = prefs.textSizeSp + Prefs.TEXT_STEP_SP
+            applyTextStyle()
+            dialog.dismiss()
+        }
+        view.findViewById<TextView>(R.id.menuLogout).setOnClickListener {
+            dialog.dismiss()
+            stopPolling()
+            prefs.clearTokens()
+            LyricsRepository.clear()
+            applyScreen()
+        }
+        view.findViewById<TextView>(R.id.menuReset).setOnClickListener {
+            dialog.dismiss()
+            stopPolling()
+            prefs.clearTokens()
+            prefs.clientId = null
+            LyricsRepository.clear()
+            applyScreen()
+        }
+        view.findViewById<TextView>(R.id.menuQuit).setOnClickListener {
+            dialog.dismiss()
+            quitApp()
+        }
+        dialog.show()
     }
 
     private fun quitApp() {
