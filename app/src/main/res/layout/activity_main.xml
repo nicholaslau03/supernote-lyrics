@@ -184,6 +184,20 @@
             style="?android:attr/borderlessButtonStyle" />
     </LinearLayout>
 
+    <!-- Refresh button (left of ⋮), only on lyrics screen -->
+    <Button
+        android:id="@+id/refreshButton"
+        android:layout_width="44dp"
+        android:layout_height="44dp"
+        android:layout_gravity="top|end"
+        android:layout_marginTop="8dp"
+        android:layout_marginEnd="60dp"
+        android:text="↻"
+        android:textSize="22sp"
+        android:textColor="@color/ink_gray"
+        android:background="@android:color/transparent"
+        android:visibility="gone" />
+
     <!-- Floating settings affordance, only on lyrics screen -->
     <Button
         android:id="@+id/menuButton"

@@ -32,6 +32,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var setupScreen: View
     private lateinit var loginScreen: View
     private lateinit var menuButton: Button
+    private lateinit var refreshButton: Button
 
     private lateinit var clientIdInput: EditText
     private lateinit var saveClientIdButton: Button
@@ -72,6 +73,7 @@ class MainActivity : AppCompatActivity() {
         setupScreen = findViewById(R.id.setupScreen)
         loginScreen = findViewById(R.id.loginScreen)
         menuButton = findViewById(R.id.menuButton)
+        refreshButton = findViewById(R.id.refreshButton)
 
         clientIdInput = findViewById(R.id.clientIdInput)
         saveClientIdButton = findViewById(R.id.saveClientIdButton)
@@ -108,6 +110,7 @@ class MainActivity : AppCompatActivity() {
             applyScreen()
         }
         menuButton.setOnClickListener { showMenu() }
+        refreshButton.setOnClickListener { LyricsRepository.refresh() }
 
         lifecycleScope.launch {
             lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -153,18 +156,21 @@ class MainActivity : AppCompatActivity() {
                 loginScreen.visibility = View.GONE
                 lyricsScreen.visibility = View.GONE
                 menuButton.visibility = View.GONE
+                refreshButton.visibility = View.GONE
             }
             !prefs.isLoggedIn -> {
                 setupScreen.visibility = View.GONE
                 loginScreen.visibility = View.VISIBLE
                 lyricsScreen.visibility = View.GONE
                 menuButton.visibility = View.GONE
+                refreshButton.visibility = View.GONE
             }
             else -> {
                 setupScreen.visibility = View.GONE
                 loginScreen.visibility = View.GONE
                 lyricsScreen.visibility = View.VISIBLE
                 menuButton.visibility = View.VISIBLE
+                refreshButton.visibility = View.VISIBLE
                 if (LyricsRepository.track.value == null) {
                     statusText.text = getString(R.string.waiting_for_spotify)
                     statusText.visibility = View.VISIBLE
@@ -233,13 +239,18 @@ class MainActivity : AppCompatActivity() {
 
     private fun showMenu() {
         val view = LayoutInflater.from(this).inflate(R.layout.dialog_menu, null)
-        view.findViewById<TextView>(R.id.sourceLabel).text = buildSourceChain()
+        val sourceLabelTv = view.findViewById<TextView>(R.id.sourceLabel)
 
         val simplifyTv = view.findViewById<TextView>(R.id.menuSimplify)
         simplifyTv.text = if (prefs.simplifyChinese)
             getString(R.string.simplify_on) else getString(R.string.simplify_off)
 
         val dialog = AlertDialog.Builder(this).setView(view).create()
+        sourceLabelTv.text = buildSourceChain { name ->
+            dialog.dismiss()
+            LyricsRepository.useSource(name)
+        }
+        sourceLabelTv.movementMethod = android.text.method.LinkMovementMethod.getInstance()
 
         simplifyTv.setOnClickListener {
             prefs.simplifyChinese = !prefs.simplifyChinese
@@ -289,7 +300,7 @@ class MainActivity : AppCompatActivity() {
      * Bold = source whose lyrics are currently being displayed.
      * Underline = source that returned anything (synced or plain) for this song.
      */
-    private fun buildSourceChain(): CharSequence {
+    private fun buildSourceChain(onSourceClick: (String) -> Unit): CharSequence {
         val activeSource = LyricsRepository.source.value
         val states = LyricsRepository.sourceStates.value
         if (states.isEmpty() && activeSource == null) {
@@ -300,7 +311,8 @@ class MainActivity : AppCompatActivity() {
             val start = ssb.length
             ssb.append(name)
             val end = ssb.length
-            if (states[name] == SourceStatus.Found) {
+            val found = states[name] == SourceStatus.Found
+            if (found) {
                 ssb.setSpan(
                     android.text.style.UnderlineSpan(),
                     start, end, android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
@@ -311,6 +323,18 @@ class MainActivity : AppCompatActivity() {
                     android.text.style.StyleSpan(android.graphics.Typeface.BOLD),
                     start, end, android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
                 )
+            }
+            // Only non-active Found sources are clickable (tapping the
+            // already-active one would do nothing useful).
+            if (found && name != activeSource) {
+                ssb.setSpan(object : android.text.style.ClickableSpan() {
+                    override fun onClick(widget: View) { onSourceClick(name) }
+                    override fun updateDrawState(ds: android.text.TextPaint) {
+                        super.updateDrawState(ds)
+                        ds.isUnderlineText = true
+                        ds.color = ContextCompat.getColor(this@MainActivity, R.color.ink_black)
+                    }
+                }, start, end, android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
             }
             if (i < LyricsRepository.SOURCE_NAMES.size - 1) ssb.append(" → ")
         }

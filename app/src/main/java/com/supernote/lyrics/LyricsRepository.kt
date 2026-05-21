@@ -86,6 +86,9 @@ object LyricsRepository {
     private var lastFetchedKey: String? = null
     private var fetchJob: Job? = null
 
+    /** Results from each source for the current track. Used to switch on-demand. */
+    private val cachedResults = ConcurrentHashMap<String, LyricsBundle>()
+
     /** Optional internal-Spotify client. Set by MainActivity on startup. */
     @Volatile
     var spotifyInternal: SpotifyInternalClient? = null
@@ -100,6 +103,7 @@ object LyricsRepository {
         _state.value = LyricsState.Loading
         _source.value = null
         _sourceStates.value = SOURCE_NAMES.associateWith { SourceStatus.Searching }
+        cachedResults.clear()
         fetchJob?.cancel()
 
         val trackKey = info.key
@@ -116,10 +120,12 @@ object LyricsRepository {
                 if (lastFetchedKey != trackKey) return
                 when {
                     result?.synced != null -> {
+                        cachedResults[name] = result
                         markStatus(name, SourceStatus.Found)
                         if (applied.compareAndSet(false, true)) applyBundle(result)
                     }
                     result?.plain != null -> {
+                        cachedResults[name] = result
                         markStatus(name, SourceStatus.Found)
                         plainCandidates[name] = result
                     }
@@ -173,6 +179,27 @@ object LyricsRepository {
         _playback.value = info
     }
 
+    /**
+     * Manually switch to a different source's cached result. Used when the
+     * user taps an underlined source in the chain. No-op if that source
+     * never returned anything for the current track.
+     */
+    fun useSource(name: String) {
+        val bundle = cachedResults[name] ?: return
+        if (bundle.synced != null) applyBundle(bundle) else applyPlain(bundle)
+    }
+
+    /**
+     * Force a fresh fetch for the currently-playing track (re-runs all
+     * sources, ignores cache). Used by the toolbar refresh button when the
+     * user wants the latest result immediately.
+     */
+    fun refresh() {
+        val info = _track.value ?: return
+        lastFetchedKey = null  // bypass the dedup check
+        onTrack(info)
+    }
+
     fun clear() {
         _track.value = null
         _lines.value = emptyList()
@@ -180,6 +207,7 @@ object LyricsRepository {
         _playback.value = null
         _source.value = null
         _sourceStates.value = emptyMap()
+        cachedResults.clear()
         lastFetchedKey = null
         fetchJob?.cancel()
     }
