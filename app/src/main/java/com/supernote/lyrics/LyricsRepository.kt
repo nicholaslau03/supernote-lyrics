@@ -70,7 +70,12 @@ object LyricsRepository {
         _state.value = LyricsState.Loading
         fetchJob?.cancel()
         fetchJob = scope.launch {
-            // Try synced sources in priority order: LRCLIB, KuGou, QQ Music.
+            // Try synced sources in priority order:
+            // Musixmatch (best coverage), LRCLIB, KuGou, QQ Music.
+            val mxm = MusixmatchClient.fetch(info.title, info.artist, info.durationMs)
+            if (lastFetchedKey != info.key) return@launch
+            if (mxm?.synced != null) { applyBundle(mxm); return@launch }
+
             val lrcLib = LrcLibClient.fetch(info.title, info.artist, info.album, info.durationMs)
             if (lastFetchedKey != info.key) return@launch
             if (lrcLib?.synced != null) { applyBundle(lrcLib); return@launch }
@@ -90,7 +95,7 @@ object LyricsRepository {
             if (mojim?.plain != null) { applyPlain(mojim); return@launch }
 
             // Last resort: any plain text we collected along the way.
-            val plain = lrcLib?.plain ?: kuGou?.plain ?: qq?.plain
+            val plain = mxm?.plain ?: lrcLib?.plain ?: kuGou?.plain ?: qq?.plain
             if (plain != null) {
                 _lines.value = plain.split("\n").map { LrcLine(0L, it) }
                 _state.value = LyricsState.LoadedUnsynced
