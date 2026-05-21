@@ -38,6 +38,12 @@ object ChineseConverter {
     fun convert(text: String): String {
         val m = map ?: return text
         if (m.isEmpty() || text.isEmpty()) return text
+        // Japanese auto-detect: if the string contains any kana (hiragana or
+        // katakana), it's almost certainly Japanese, not Chinese. Skip T→S
+        // conversion entirely — many CJK characters are shared between trad
+        // Chinese and old Japanese (kyūjitai), and converting them to their
+        // simplified-Chinese form breaks the Japanese reading.
+        if (containsKana(text)) return text
         val sb = StringBuilder(text.length)
         var changed = false
         for (c in text) {
@@ -50,5 +56,15 @@ object ChineseConverter {
             }
         }
         return if (changed) sb.toString() else text
+    }
+
+    private fun containsKana(text: String): Boolean {
+        for (c in text) {
+            val code = c.code
+            if (code in 0x3040..0x309F) return true   // Hiragana block
+            if (code in 0x30A0..0x30FF) return true   // Katakana block
+            if (code in 0xFF66..0xFF9F) return true   // Halfwidth katakana
+        }
+        return false
     }
 }
