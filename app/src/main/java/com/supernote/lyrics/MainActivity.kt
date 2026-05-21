@@ -65,6 +65,7 @@ class MainActivity : AppCompatActivity() {
 
         prefs = Prefs(this)
         spotifyClient = SpotifyClient(prefs)
+        ChineseConverter.load(this)
 
         lyricsScreen = findViewById(R.id.lyricsScreen)
         setupScreen = findViewById(R.id.setupScreen)
@@ -230,25 +231,76 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showMenu() {
+        val simplifyLabel = if (prefs.simplifyChinese)
+            getString(R.string.simplify_on) else getString(R.string.simplify_off)
+        val items = arrayOf(
+            simplifyLabel,
+            getString(R.string.text_smaller),
+            getString(R.string.text_larger),
+            getString(R.string.logout),
+            getString(R.string.reset_setup),
+            getString(R.string.quit_app),
+        )
         AlertDialog.Builder(this)
-            .setItems(arrayOf(getString(R.string.logout), getString(R.string.reset_setup))) { _, which ->
+            .setItems(items) { _, which ->
                 when (which) {
                     0 -> {
+                        prefs.simplifyChinese = !prefs.simplifyChinese
+                        renderTrack(LyricsRepository.track.value)
+                        applyTextStyle()
+                    }
+                    1 -> {
+                        prefs.textSizeSp = prefs.textSizeSp - Prefs.TEXT_STEP_SP
+                        applyTextStyle()
+                    }
+                    2 -> {
+                        prefs.textSizeSp = prefs.textSizeSp + Prefs.TEXT_STEP_SP
+                        applyTextStyle()
+                    }
+                    3 -> {
                         stopPolling()
                         prefs.clearTokens()
                         LyricsRepository.clear()
                         applyScreen()
                     }
-                    1 -> {
+                    4 -> {
                         stopPolling()
                         prefs.clearTokens()
                         prefs.clientId = null
                         LyricsRepository.clear()
                         applyScreen()
                     }
+                    5 -> quitApp()
                 }
             }
             .show()
+    }
+
+    private fun quitApp() {
+        stopPolling()
+        finishAffinity()
+        android.os.Process.killProcess(android.os.Process.myPid())
+    }
+
+    /** Convert a piece of text for display, honoring the T→S preference. */
+    private fun displayText(s: String?): String {
+        val v = s.orEmpty()
+        return if (prefs.simplifyChinese) ChineseConverter.convert(v) else v
+    }
+
+    /**
+     * Re-apply per-view text properties (size + conversion) to existing lyric
+     * line TextViews without rebuilding the list — used when the user changes
+     * the size or T→S toggle. The current line stays bold/black.
+     */
+    private fun applyTextStyle() {
+        val sizeSp = prefs.textSizeSp.toFloat()
+        val lines = LyricsRepository.lines.value
+        lineViews.forEachIndexed { i, tv ->
+            tv.textSize = sizeSp
+            val raw = lines.getOrNull(i)?.text.orEmpty()
+            tv.text = if (raw.isBlank()) " " else displayText(raw)
+        }
     }
 
     private fun startPollingIfReady() {
@@ -277,8 +329,8 @@ class MainActivity : AppCompatActivity() {
     // ---------------- Lyrics rendering ----------------
 
     private fun renderTrack(info: TrackInfo?) {
-        trackTitle.text = info?.title.orEmpty()
-        trackArtist.text = info?.artist.orEmpty()
+        trackTitle.text = displayText(info?.title)
+        trackArtist.text = displayText(info?.artist)
     }
 
     private fun renderState(state: LyricsState) {
@@ -314,9 +366,11 @@ class MainActivity : AppCompatActivity() {
             return
         }
         val inflater = LayoutInflater.from(this)
+        val sizeSp = prefs.textSizeSp.toFloat()
         lineViews = lines.map { line ->
             val tv = inflater.inflate(R.layout.item_lyric_line, lyricsContainer, false) as TextView
-            tv.text = if (line.text.isBlank()) " " else line.text
+            tv.textSize = sizeSp
+            tv.text = if (line.text.isBlank()) " " else displayText(line.text)
             lyricsContainer.addView(tv)
             tv
         }

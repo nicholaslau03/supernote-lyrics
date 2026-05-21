@@ -33,6 +33,14 @@ class Prefs(context: Context) {
         get() = sp.getString(KEY_PENDING_STATE, null)
         set(value) = sp.edit().putString(KEY_PENDING_STATE, value).apply()
 
+    var simplifyChinese: Boolean
+        get() = sp.getBoolean(KEY_SIMPLIFY_CHINESE, true)
+        set(value) = sp.edit().putBoolean(KEY_SIMPLIFY_CHINESE, value).apply()
+
+    var textSizeSp: Int
+        get() = sp.getInt(KEY_TEXT_SIZE, 22).coerceIn(MIN_TEXT_SP, MAX_TEXT_SP)
+        set(value) = sp.edit().putInt(KEY_TEXT_SIZE, value.coerceIn(MIN_TEXT_SP, MAX_TEXT_SP)).apply()
+
     val isLoggedIn: Boolean
         get() = !accessToken.isNullOrBlank() && !refreshToken.isNullOrBlank()
 
@@ -61,11 +69,17 @@ class Prefs(context: Context) {
     }
 
     companion object {
+        const val MIN_TEXT_SP = 14
+        const val MAX_TEXT_SP = 40
+        const val TEXT_STEP_SP = 2
+
         private const val KEY_CLIENT_ID = "client_id"
         private const val KEY_ACCESS_TOKEN = "access_token"
         private const val KEY_REFRESH_TOKEN = "refresh_token"
         private const val KEY_TOKEN_EXPIRES_AT = "token_expires_at"
         private const val KEY_PENDING_VERIFIER = "pending_verifier"
         private const val KEY_PENDING_STATE = "pending_state"
+        private const val KEY_SIMPLIFY_CHINESE = "simplify_chinese"
+        private const val KEY_TEXT_SIZE = "text_size_sp"
     }
 }

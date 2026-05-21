@@ -13,6 +13,11 @@
     <string name="login_button">Log in with Spotify</string>
     <string name="reset_setup">Use a different Client ID</string>
     <string name="logout">Disconnect Spotify</string>
+    <string name="quit_app">Quit app</string>
+    <string name="text_smaller">Lyrics text: smaller</string>
+    <string name="text_larger">Lyrics text: larger</string>
+    <string name="simplify_on">Simplified Chinese: ON</string>
+    <string name="simplify_off">Simplified Chinese: OFF</string>
 
     <string name="waiting_for_spotify">Open Spotify on any device and press play.</string>
     <string name="no_lyrics">No synced lyrics found for this song on LRCLIB.</string>
