@@ -70,24 +70,38 @@ object LyricsRepository {
         _state.value = LyricsState.Loading
         fetchJob?.cancel()
         fetchJob = scope.launch {
-            val resp = LrcLibClient.fetch(info.title, info.artist, info.album, info.durationMs)
+            // Try LRCLIB first
+            val lrcLib = LrcLibClient.fetch(info.title, info.artist, info.album, info.durationMs)
             if (lastFetchedKey != info.key) return@launch
-            when {
-                resp?.synced != null -> {
-                    val parsed = LrcParser.parse(resp.synced)
-                    _lines.value = parsed
-                    _state.value = if (parsed.isEmpty()) LyricsState.NoLyrics else LyricsState.Loaded
-                }
-                resp?.plain != null -> {
-                    _lines.value = resp.plain.split("\n").map { LrcLine(0L, it) }
-                    _state.value = LyricsState.LoadedUnsynced
-                }
-                else -> {
-                    _lines.value = emptyList()
-                    _state.value = LyricsState.NoLyrics
-                }
+            if (lrcLib?.synced != null) {
+                applyBundle(lrcLib)
+                return@launch
+            }
+
+            // No synced from LRCLIB — try KuGou
+            val kuGou = KuGouClient.fetch(info.title, info.artist, info.durationMs)
+            if (lastFetchedKey != info.key) return@launch
+            if (kuGou?.synced != null) {
+                applyBundle(kuGou)
+                return@launch
+            }
+
+            // No synced anywhere — fall back to plain text if either source had it
+            val plain = lrcLib?.plain ?: kuGou?.plain
+            if (plain != null) {
+                _lines.value = plain.split("\n").map { LrcLine(0L, it) }
+                _state.value = LyricsState.LoadedUnsynced
+            } else {
+                _lines.value = emptyList()
+                _state.value = LyricsState.NoLyrics
             }
         }
+    }
+
+    private fun applyBundle(bundle: LyricsBundle) {
+        val parsed = LrcParser.parse(bundle.synced)
+        _lines.value = parsed
+        _state.value = if (parsed.isEmpty()) LyricsState.NoLyrics else LyricsState.Loaded
     }
 
     fun onPlayback(info: PlaybackInfo) {

@@ -7,13 +7,14 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
 
+/** Synced LRC string + optional plain lyrics, returned by any fetcher. */
+data class LyricsBundle(val synced: String?, val plain: String?, val source: String)
+
 object LrcLibClient {
     private const val BASE_URL = "https://lrclib.net/api/get"
     private const val USER_AGENT = "SupernoteLyrics/0.1 (https://github.com/supernote-lyrics)"
 
-    data class Result(val synced: String?, val plain: String?)
-
-    suspend fun fetch(track: String, artist: String, album: String?, durationMs: Long): Result? =
+    suspend fun fetch(track: String, artist: String, album: String?, durationMs: Long): LyricsBundle? =
         withContext(Dispatchers.IO) {
             val params = mutableListOf(
                 "track_name=" + URLEncoder.encode(track, "UTF-8"),
@@ -37,9 +38,10 @@ object LrcLibClient {
                 if (conn.responseCode != 200) return@withContext null
                 val body = conn.inputStream.bufferedReader().use { it.readText() }
                 val obj = JSONObject(body)
-                Result(
+                LyricsBundle(
                     synced = obj.optString("syncedLyrics").takeIf { it.isNotBlank() },
-                    plain = obj.optString("plainLyrics").takeIf { it.isNotBlank() }
+                    plain = obj.optString("plainLyrics").takeIf { it.isNotBlank() },
+                    source = "LRCLIB"
                 )
             } catch (_: Exception) {
                 null

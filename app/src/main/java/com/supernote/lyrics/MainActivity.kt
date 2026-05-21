@@ -365,11 +365,17 @@ class MainActivity : AppCompatActivity() {
             lineViews = emptyList()
             return
         }
+        val unsynced = LyricsRepository.state.value == LyricsState.LoadedUnsynced
+        val defaultColor = ContextCompat.getColor(
+            this,
+            if (unsynced) R.color.ink_black else R.color.ink_gray
+        )
         val inflater = LayoutInflater.from(this)
         val sizeSp = prefs.textSizeSp.toFloat()
         lineViews = lines.map { line ->
             val tv = inflater.inflate(R.layout.item_lyric_line, lyricsContainer, false) as TextView
             tv.textSize = sizeSp
+            tv.setTextColor(defaultColor)
             tv.text = if (line.text.isBlank()) " " else displayText(line.text)
             lyricsContainer.addView(tv)
             tv
@@ -379,6 +385,8 @@ class MainActivity : AppCompatActivity() {
 
     private fun updateActiveLine() {
         if (lyricsScreen.visibility != View.VISIBLE) return
+        // Plain-text fallback: no sync, no highlight, no auto-scroll.
+        if (LyricsRepository.state.value == LyricsState.LoadedUnsynced) return
         val lines = LyricsRepository.lines.value
         val pb = LyricsRepository.playback.value
         if (lines.isEmpty() || pb == null || lineViews.isEmpty()) return
