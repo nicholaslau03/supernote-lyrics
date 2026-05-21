@@ -233,10 +233,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun showMenu() {
         val view = LayoutInflater.from(this).inflate(R.layout.dialog_menu, null)
-        val source = LyricsRepository.source.value
-        view.findViewById<TextView>(R.id.sourceLabel).text =
-            if (source.isNullOrBlank()) getString(R.string.source_unknown)
-            else getString(R.string.source_label, source)
+        view.findViewById<TextView>(R.id.sourceLabel).text = buildSourceChain()
 
         val simplifyTv = view.findViewById<TextView>(R.id.menuSimplify)
         simplifyTv.text = if (prefs.simplifyChinese)
@@ -284,6 +281,40 @@ class MainActivity : AppCompatActivity() {
             quitApp()
         }
         dialog.show()
+    }
+
+    /**
+     * Build the source-chain label shown at the top of the menu, e.g.
+     *   "Spotify → Musixmatch → LRCLIB → KuGou → QQMusic → Mojim"
+     * Bold = source whose lyrics are currently being displayed.
+     * Underline = source that returned anything (synced or plain) for this song.
+     */
+    private fun buildSourceChain(): CharSequence {
+        val activeSource = LyricsRepository.source.value
+        val states = LyricsRepository.sourceStates.value
+        if (states.isEmpty() && activeSource == null) {
+            return getString(R.string.source_unknown)
+        }
+        val ssb = android.text.SpannableStringBuilder()
+        LyricsRepository.SOURCE_NAMES.forEachIndexed { i, name ->
+            val start = ssb.length
+            ssb.append(name)
+            val end = ssb.length
+            if (states[name] == SourceStatus.Found) {
+                ssb.setSpan(
+                    android.text.style.UnderlineSpan(),
+                    start, end, android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+                )
+            }
+            if (name == activeSource) {
+                ssb.setSpan(
+                    android.text.style.StyleSpan(android.graphics.Typeface.BOLD),
+                    start, end, android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+                )
+            }
+            if (i < LyricsRepository.SOURCE_NAMES.size - 1) ssb.append(" → ")
+        }
+        return ssb
     }
 
     private fun quitApp() {

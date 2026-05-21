@@ -8,7 +8,10 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicBoolean
 
 data class TrackInfo(
     val title: String,
@@ -41,7 +44,25 @@ sealed class LyricsState {
     object NoLyrics : LyricsState()
 }
 
+enum class SourceStatus {
+    /** Not yet started (used briefly before launch). */
+    Idle,
+
+    /** Network call in flight. */
+    Searching,
+
+    /** Source returned synced or plain lyrics for this track. */
+    Found,
+
+    /** Source returned nothing (404 / not in their catalogue / cookie missing). */
+    NotFound,
+}
+
 object LyricsRepository {
+
+    /** Display order for the chain in the menu, and priority for plain-text fallback. */
+    val SOURCE_NAMES = listOf("Spotify", "Musixmatch", "LRCLIB", "KuGou", "QQMusic", "Mojim")
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     private val _track = MutableStateFlow<TrackInfo?>(null)
@@ -59,6 +80,9 @@ object LyricsRepository {
     private val _source = MutableStateFlow<String?>(null)
     val source: StateFlow<String?> = _source.asStateFlow()
 
+    private val _sourceStates = MutableStateFlow<Map<String, SourceStatus>>(emptyMap())
+    val sourceStates: StateFlow<Map<String, SourceStatus>> = _sourceStates.asStateFlow()
+
     private var lastFetchedKey: String? = null
     private var fetchJob: Job? = null
 
@@ -68,55 +92,67 @@ object LyricsRepository {
 
     fun onTrack(info: TrackInfo) {
         val current = _track.value
-        if (current?.key == info.key && lastFetchedKey == info.key) {
-            return
-        }
+        if (current?.key == info.key && lastFetchedKey == info.key) return
         _track.value = info
         if (lastFetchedKey == info.key) return
         lastFetchedKey = info.key
         _lines.value = emptyList()
         _state.value = LyricsState.Loading
         _source.value = null
+        _sourceStates.value = SOURCE_NAMES.associateWith { SourceStatus.Searching }
         fetchJob?.cancel()
+
+        val trackKey = info.key
         fetchJob = scope.launch {
-            // Try synced sources in priority order:
-            // Spotify-internal (if sp_dc cookie configured), Musixmatch, LRCLIB, KuGou, QQ Music.
-            val sp = spotifyInternal?.fetch(info.spotifyTrackId)
-            if (lastFetchedKey != info.key) return@launch
-            if (sp?.synced != null) { applyBundle(sp); return@launch }
+            // First-to-return wins the displayed slot. Other sources keep running
+            // so we can show "Found" badges in the menu even after the bold one
+            // has been chosen. Synced beats plain — plain is only used if every
+            // source has reported.
+            val applied = AtomicBoolean(false)
+            val plainCandidates = ConcurrentHashMap<String, LyricsBundle>()
 
-            val mxm = MusixmatchClient.fetch(info.title, info.artist, info.durationMs)
-            if (lastFetchedKey != info.key) return@launch
-            if (mxm?.synced != null) { applyBundle(mxm); return@launch }
+            suspend fun tryOne(name: String, fetcher: suspend () -> LyricsBundle?) {
+                val result = try { fetcher() } catch (_: Exception) { null }
+                if (lastFetchedKey != trackKey) return
+                when {
+                    result?.synced != null -> {
+                        markStatus(name, SourceStatus.Found)
+                        if (applied.compareAndSet(false, true)) applyBundle(result)
+                    }
+                    result?.plain != null -> {
+                        markStatus(name, SourceStatus.Found)
+                        plainCandidates[name] = result
+                    }
+                    else -> markStatus(name, SourceStatus.NotFound)
+                }
+            }
 
-            val lrcLib = LrcLibClient.fetch(info.title, info.artist, info.album, info.durationMs)
-            if (lastFetchedKey != info.key) return@launch
-            if (lrcLib?.synced != null) { applyBundle(lrcLib); return@launch }
+            val jobs = listOf(
+                launch { tryOne("Spotify") { spotifyInternal?.fetch(info.spotifyTrackId) } },
+                launch { tryOne("Musixmatch") { MusixmatchClient.fetch(info.title, info.artist, info.durationMs) } },
+                launch { tryOne("LRCLIB") { LrcLibClient.fetch(info.title, info.artist, info.album, info.durationMs) } },
+                launch { tryOne("KuGou") { KuGouClient.fetch(info.title, info.artist, info.durationMs) } },
+                launch { tryOne("QQMusic") { QQMusicClient.fetch(info.title, info.artist) } },
+                launch { tryOne("Mojim") { MojimClient.fetch(info.title, info.artist) } },
+            )
+            jobs.joinAll()
 
-            val kuGou = KuGouClient.fetch(info.title, info.artist, info.durationMs)
-            if (lastFetchedKey != info.key) return@launch
-            if (kuGou?.synced != null) { applyBundle(kuGou); return@launch }
-
-            val qq = QQMusicClient.fetch(info.title, info.artist)
-            if (lastFetchedKey != info.key) return@launch
-            if (qq?.synced != null) { applyBundle(qq); return@launch }
-
-            // No synced anywhere. Try Mojim for plain text — best Chinese
-            // plain-text coverage and a fresh shot at songs the others missed.
-            val mojim = MojimClient.fetch(info.title, info.artist)
-            if (lastFetchedKey != info.key) return@launch
-            if (mojim?.plain != null) { applyPlain(mojim); return@launch }
-
-            // Last resort: any plain text we collected along the way.
-            val plain = sp?.plain ?: mxm?.plain ?: lrcLib?.plain ?: kuGou?.plain ?: qq?.plain
-            if (plain != null) {
-                _lines.value = plain.split("\n").map { LrcLine(0L, it) }
-                _state.value = LyricsState.LoadedUnsynced
-            } else {
-                _lines.value = emptyList()
-                _state.value = LyricsState.NoLyrics
+            if (lastFetchedKey != trackKey) return@launch
+            if (!applied.get()) {
+                // Use first plain in priority order.
+                val plain = SOURCE_NAMES.firstNotNullOfOrNull { plainCandidates[it] }
+                if (plain != null) {
+                    applyPlain(plain)
+                } else {
+                    _lines.value = emptyList()
+                    _state.value = LyricsState.NoLyrics
+                }
             }
         }
+    }
+
+    private fun markStatus(name: String, status: SourceStatus) {
+        _sourceStates.value = _sourceStates.value.toMutableMap().apply { put(name, status) }
     }
 
     private fun applyBundle(bundle: LyricsBundle) {
@@ -143,6 +179,7 @@ object LyricsRepository {
         _state.value = LyricsState.Idle
         _playback.value = null
         _source.value = null
+        _sourceStates.value = emptyMap()
         lastFetchedKey = null
         fetchJob?.cancel()
     }
