@@ -65,6 +65,7 @@ class MainActivity : AppCompatActivity() {
 
         prefs = Prefs(this)
         spotifyClient = SpotifyClient(prefs)
+        LyricsRepository.spotifyInternal = SpotifyInternalClient(prefs)
         ChineseConverter.load(this)
 
         lyricsScreen = findViewById(R.id.lyricsScreen)
@@ -259,6 +260,10 @@ class MainActivity : AppCompatActivity() {
             applyTextStyle()
             dialog.dismiss()
         }
+        view.findViewById<TextView>(R.id.menuSetupSpotify).setOnClickListener {
+            dialog.dismiss()
+            showSpDcDialog()
+        }
         view.findViewById<TextView>(R.id.menuLogout).setOnClickListener {
             dialog.dismiss()
             stopPolling()
@@ -285,6 +290,39 @@ class MainActivity : AppCompatActivity() {
         stopPolling()
         finishAffinity()
         android.os.Process.killProcess(android.os.Process.myPid())
+    }
+
+    private fun showSpDcDialog() {
+        val view = LayoutInflater.from(this).inflate(R.layout.dialog_sp_dc, null)
+        val input = view.findViewById<EditText>(R.id.spDcInput)
+        val status = view.findViewById<TextView>(R.id.spDcStatus)
+        prefs.spDcCookie?.let {
+            input.setText(it)
+            status.text = "Currently set (${it.length} chars)"
+        }
+        AlertDialog.Builder(this)
+            .setView(view)
+            .setPositiveButton("Save") { _, _ ->
+                val value = input.text.toString().trim()
+                if (value.isEmpty()) {
+                    prefs.spDcCookie = null
+                    Toast.makeText(this, R.string.sp_dc_cleared, Toast.LENGTH_SHORT).show()
+                } else {
+                    prefs.spDcCookie = value
+                    Toast.makeText(this, R.string.sp_dc_saved, Toast.LENGTH_SHORT).show()
+                }
+                // Force re-fetch of current track so the new source is tried immediately.
+                LyricsRepository.track.value?.let { current ->
+                    LyricsRepository.clear()
+                    LyricsRepository.onTrack(current)
+                }
+            }
+            .setNeutralButton("Clear") { _, _ ->
+                prefs.spDcCookie = null
+                Toast.makeText(this, R.string.sp_dc_cleared, Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 
     /** Convert a piece of text for display, honoring the T→S preference. */

@@ -20,6 +20,12 @@
     <string name="simplify_off">Simplified Chinese: OFF</string>
     <string name="source_unknown">No lyrics loaded</string>
     <string name="source_label">Lyrics source: %1$s</string>
+    <string name="setup_spotify_lyrics">Setup Spotify lyrics cookie</string>
+    <string name="sp_dc_title">Spotify lyrics cookie (sp_dc)</string>
+    <string name="sp_dc_instructions">Unlocks Spotify\'s full Musixmatch catalogue (much better Chinese / indie coverage than the public API).\n\nOn any computer:\n1. Open open.spotify.com and log in\n2. F12 → Application → Cookies → spotify.com\n3. Copy the value of <b>sp_dc</b>\n4. Paste below.\n\nThis cookie is stored only on this device. Lasts ~1 year then needs refresh.</string>
+    <string name="sp_dc_hint">Paste sp_dc value here</string>
+    <string name="sp_dc_saved">Saved. Will be used for the next track.</string>
+    <string name="sp_dc_cleared">Cleared.</string>
 
     <string name="waiting_for_spotify">Open Spotify on any device and press play.</string>
     <string name="no_lyrics">No synced lyrics found for this song.</string>

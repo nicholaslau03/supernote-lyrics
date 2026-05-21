@@ -41,6 +41,10 @@ class Prefs(context: Context) {
         get() = sp.getInt(KEY_TEXT_SIZE, 22).coerceIn(MIN_TEXT_SP, MAX_TEXT_SP)
         set(value) = sp.edit().putInt(KEY_TEXT_SIZE, value.coerceIn(MIN_TEXT_SP, MAX_TEXT_SP)).apply()
 
+    var spDcCookie: String?
+        get() = sp.getString(KEY_SP_DC, null)?.takeIf { it.isNotBlank() }
+        set(value) = sp.edit().putString(KEY_SP_DC, value?.trim()).apply()
+
     val isLoggedIn: Boolean
         get() = !accessToken.isNullOrBlank() && !refreshToken.isNullOrBlank()
 
@@ -81,5 +85,6 @@ class Prefs(context: Context) {
         private const val KEY_PENDING_STATE = "pending_state"
         private const val KEY_SIMPLIFY_CHINESE = "simplify_chinese"
         private const val KEY_TEXT_SIZE = "text_size_sp"
+        private const val KEY_SP_DC = "sp_dc_cookie"
     }
 }

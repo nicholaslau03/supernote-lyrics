@@ -15,6 +15,7 @@ data class TrackInfo(
     val artist: String,
     val album: String?,
     val durationMs: Long,
+    val spotifyTrackId: String? = null,
 ) {
     val key: String get() = "$title$artist${durationMs / 1000}"
 }
@@ -61,6 +62,10 @@ object LyricsRepository {
     private var lastFetchedKey: String? = null
     private var fetchJob: Job? = null
 
+    /** Optional internal-Spotify client. Set by MainActivity on startup. */
+    @Volatile
+    var spotifyInternal: SpotifyInternalClient? = null
+
     fun onTrack(info: TrackInfo) {
         val current = _track.value
         if (current?.key == info.key && lastFetchedKey == info.key) {
@@ -75,7 +80,11 @@ object LyricsRepository {
         fetchJob?.cancel()
         fetchJob = scope.launch {
             // Try synced sources in priority order:
-            // Musixmatch (best coverage), LRCLIB, KuGou, QQ Music.
+            // Spotify-internal (if sp_dc cookie configured), Musixmatch, LRCLIB, KuGou, QQ Music.
+            val sp = spotifyInternal?.fetch(info.spotifyTrackId)
+            if (lastFetchedKey != info.key) return@launch
+            if (sp?.synced != null) { applyBundle(sp); return@launch }
+
             val mxm = MusixmatchClient.fetch(info.title, info.artist, info.durationMs)
             if (lastFetchedKey != info.key) return@launch
             if (mxm?.synced != null) { applyBundle(mxm); return@launch }
@@ -99,7 +108,7 @@ object LyricsRepository {
             if (mojim?.plain != null) { applyPlain(mojim); return@launch }
 
             // Last resort: any plain text we collected along the way.
-            val plain = mxm?.plain ?: lrcLib?.plain ?: kuGou?.plain ?: qq?.plain
+            val plain = sp?.plain ?: mxm?.plain ?: lrcLib?.plain ?: kuGou?.plain ?: qq?.plain
             if (plain != null) {
                 _lines.value = plain.split("\n").map { LrcLine(0L, it) }
                 _state.value = LyricsState.LoadedUnsynced

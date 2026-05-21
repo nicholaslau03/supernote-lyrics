@@ -82,9 +82,10 @@ class SpotifyClient(private val prefs: Prefs) {
             val durationMs = item.optLong("duration_ms", 0L).coerceAtLeast(0L)
             val progressMs = json.optLong("progress_ms", 0L).coerceAtLeast(0L)
             val playing = json.optBoolean("is_playing", false)
+            val trackId = item.optString("id").takeIf { it.isNotBlank() }
             if (title.isBlank() || artist.isBlank()) return PollState.NothingPlaying
             PollState.Playing(
-                track = TrackInfo(title.trim(), artist.trim(), album?.trim(), durationMs),
+                track = TrackInfo(title.trim(), artist.trim(), album?.trim(), durationMs, trackId),
                 playback = PlaybackInfo(
                     positionMs = progressMs,
                     updatedAtElapsedMs = now,
