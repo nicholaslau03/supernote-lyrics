@@ -1,12 +1,15 @@
 package com.supernote.lyrics
 
 import android.util.Base64
+import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
+
+private const val TAG = "SupernoteLyrics"
 
 /**
  * Fallback lyric source: KuGou Music (酷狗音乐) — large Chinese + decent
@@ -27,14 +30,31 @@ object KuGouClient {
         withContext(Dispatchers.IO) {
             try {
                 val keyword = "$title $artist".trim()
-                val (hash, songDurMs) = searchSongHash(keyword) ?: return@withContext null
+                Log.d(TAG, "KuGou.fetch keyword='$keyword' durationMs=$durationMs")
+                val hashPair = searchSongHash(keyword)
+                if (hashPair == null) {
+                    Log.d(TAG, "KuGou search returned no hash")
+                    return@withContext null
+                }
+                val (hash, songDurMs) = hashPair
+                Log.d(TAG, "KuGou search hit hash=$hash kgDurMs=$songDurMs")
                 val durationForCandidate = if (durationMs > 0) durationMs else songDurMs
-                val (id, accesskey) = findLyricCandidate(hash, durationForCandidate)
-                    ?: return@withContext null
-                val lrc = downloadLrc(id, accesskey) ?: return@withContext null
-                if (lrc.isBlank()) return@withContext null
+                val cand = findLyricCandidate(hash, durationForCandidate)
+                if (cand == null) {
+                    Log.d(TAG, "KuGou no lyric candidate")
+                    return@withContext null
+                }
+                val (id, accesskey) = cand
+                Log.d(TAG, "KuGou candidate id=$id")
+                val lrc = downloadLrc(id, accesskey)
+                if (lrc.isNullOrBlank()) {
+                    Log.d(TAG, "KuGou download empty")
+                    return@withContext null
+                }
+                Log.d(TAG, "KuGou OK ${lrc.length} chars")
                 LyricsBundle(synced = lrc, plain = null, source = "KuGou")
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                Log.w(TAG, "KuGou exception", e)
                 null
             }
         }
@@ -93,8 +113,10 @@ object KuGouClient {
             val code = conn.responseCode
             val stream = if (code in 200..299) conn.inputStream else conn.errorStream
             val body = stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }
+            Log.d(TAG, "httpGet $code ${url.take(80)} bodyLen=${body?.length ?: 0}")
             code to body
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.w(TAG, "httpGet failed url=$url err=${e.javaClass.simpleName}: ${e.message}")
             null
         } finally {
             conn?.disconnect()

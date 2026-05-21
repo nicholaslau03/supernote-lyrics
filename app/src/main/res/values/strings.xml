@@ -20,7 +20,7 @@
     <string name="simplify_off">Simplified Chinese: OFF</string>
 
     <string name="waiting_for_spotify">Open Spotify on any device and press play.</string>
-    <string name="no_lyrics">No synced lyrics found for this song on LRCLIB.</string>
+    <string name="no_lyrics">No synced lyrics found for this song.</string>
     <string name="loading_lyrics">Looking up lyrics…</string>
     <string name="login_failed">Login failed — try again.</string>
     <string name="no_client_id">Enter a Client ID first.</string>

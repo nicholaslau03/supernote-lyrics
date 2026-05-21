@@ -25,4 +25,9 @@ fi
 echo "Installing $(basename "$APK") to:"
 echo "$DEVICES" | sed 's/^/  /'
 adb install -r "$APK"
-echo "Done."
+
+# Force-stop the running instance so the launcher loads the new code.
+# Without this, an app that's already in memory keeps running the old APK
+# until you manually quit it.
+adb shell am force-stop com.supernote.lyrics 2>/dev/null || true
+echo "Done. Open the app from the Manta launcher to use the new build."
