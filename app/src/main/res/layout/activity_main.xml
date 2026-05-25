@@ -175,13 +175,28 @@
             android:layout_marginTop="32dp"
             android:text="@string/login_button" />
 
-        <Button
-            android:id="@+id/resetSetupButton"
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="@string/reset_setup"
-            style="?android:attr/borderlessButtonStyle" />
+            android:orientation="horizontal"
+            android:layout_marginTop="8dp">
+
+            <Button
+                android:id="@+id/resetSetupButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/reset_setup"
+                style="?android:attr/borderlessButtonStyle" />
+
+            <Button
+                android:id="@+id/quitFromLoginButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/quit_app"
+                style="?android:attr/borderlessButtonStyle" />
+        </LinearLayout>
     </LinearLayout>
 
     <!-- Refresh button (left of ⋮), only on lyrics screen -->

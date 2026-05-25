@@ -39,6 +39,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var openDashboardButton: Button
     private lateinit var loginButton: Button
     private lateinit var resetSetupButton: Button
+    private lateinit var quitFromLoginButton: Button
     private lateinit var loginErrorText: TextView
 
     private lateinit var trackTitle: TextView
@@ -80,6 +81,7 @@ class MainActivity : AppCompatActivity() {
         openDashboardButton = findViewById(R.id.openDashboardButton)
         loginButton = findViewById(R.id.loginButton)
         resetSetupButton = findViewById(R.id.resetSetupButton)
+        quitFromLoginButton = findViewById(R.id.quitFromLoginButton)
         loginErrorText = findViewById(R.id.loginErrorText)
 
         trackTitle = findViewById(R.id.trackTitle)
@@ -109,6 +111,7 @@ class MainActivity : AppCompatActivity() {
             LyricsRepository.clear()
             applyScreen()
         }
+        quitFromLoginButton.setOnClickListener { quitApp() }
         menuButton.setOnClickListener { showMenu() }
         refreshButton.setOnClickListener { LyricsRepository.refresh() }
 
