@@ -14,6 +14,7 @@
     <string name="reset_setup">Use a different Client ID</string>
     <string name="logout">Disconnect Spotify</string>
     <string name="quit_app">Quit app</string>
+    <string name="refresh">Refresh</string>
     <string name="text_smaller">Lyrics text: smaller</string>
     <string name="text_larger">Lyrics text: larger</string>
     <string name="simplify_on">Simplified Chinese: ON</string>

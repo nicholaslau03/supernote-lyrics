@@ -40,6 +40,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var loginButton: Button
     private lateinit var resetSetupButton: Button
     private lateinit var quitFromLoginButton: Button
+    private lateinit var refreshFromLoginButton: Button
     private lateinit var loginErrorText: TextView
 
     private lateinit var trackTitle: TextView
@@ -82,6 +83,7 @@ class MainActivity : AppCompatActivity() {
         loginButton = findViewById(R.id.loginButton)
         resetSetupButton = findViewById(R.id.resetSetupButton)
         quitFromLoginButton = findViewById(R.id.quitFromLoginButton)
+        refreshFromLoginButton = findViewById(R.id.refreshFromLoginButton)
         loginErrorText = findViewById(R.id.loginErrorText)
 
         trackTitle = findViewById(R.id.trackTitle)
@@ -112,6 +114,13 @@ class MainActivity : AppCompatActivity() {
             applyScreen()
         }
         quitFromLoginButton.setOnClickListener { quitApp() }
+        refreshFromLoginButton.setOnClickListener {
+            // Re-evaluate the screen state (in case tokens reappeared since
+            // last render, e.g. background restored from keychain) and try to
+            // start polling. If still logged out, stays on this screen.
+            applyScreen()
+            startPollingIfReady()
+        }
         menuButton.setOnClickListener { showMenu() }
         refreshButton.setOnClickListener { LyricsRepository.refresh() }
 
