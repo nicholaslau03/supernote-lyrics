@@ -63,8 +63,11 @@ class SpotifyClient(private val prefs: Prefs) {
             val now = SystemClock.elapsedRealtime()
             val json = JSONObject(body)
             val item = json.optJSONObject("item") ?: return PollState.NothingPlaying
+            // Drop podcasts/episodes (no real artist field), but accept any other
+            // type that produces title+artist — including local files which
+            // sometimes come back as "unknown" instead of "track".
             val type = json.optString("currently_playing_type")
-            if (type.isNotBlank() && type != "track") return PollState.NothingPlaying
+            if (type == "episode" || type == "ad") return PollState.NothingPlaying
             val title = item.optString("name").orEmpty()
             val artists = item.optJSONArray("artists")
             val artist = buildString {
